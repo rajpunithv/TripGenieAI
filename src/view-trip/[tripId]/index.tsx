@@ -12,24 +12,38 @@ import Navbar from "../../components/Navbar"; // Adjust path if needed
 const Viewtrip: React.FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
   const [trip, setTrip] = useState<Record<string, any> | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    tripId && GetTripData();
+    if (tripId) {
+      GetTripData();
+    } else {
+      toast.error("Trip ID is missing from the URL.");
+    }
   }, [tripId]);
 
   const GetTripData = async () => {
-    if (tripId) {
-      const docRef = doc(db, "AITrips", tripId);
+    try {
+      const docRef = doc(db, "AITrips", tripId!);
       const docSnap = await getDoc(docRef);
+
       if (docSnap.exists()) {
-        console.log("Document data:", docSnap.data());
-        setTrip(docSnap.data() as Record<string, any>);
+        const data = docSnap.data();
+        if (!data) {
+          toast.error("Trip data is empty.");
+          return;
+        }
+        console.log("Document data:", data);
+        setTrip(data as Record<string, any>);
       } else {
-        console.log("No such document!");
+        console.warn("No such trip document!");
+        toast.error("No such trip found.");
       }
-    } else {
-      console.error("tripId is undefined");
-      toast("No Trip found");
+    } catch (error) {
+      console.error("Error fetching trip:", error);
+      toast.error("Failed to fetch trip data.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -38,9 +52,19 @@ const Viewtrip: React.FC = () => {
       <Navbar />
 
       <div className="w-full min-h-screen bg-blue-50 px-4 md:px-20 lg:px-44 xl:px-56 py-10">
-        <InfoSection trip={trip} />
-        <Hotels trip={trip} />
-        <PlacesToVisit trip={trip} />
+        {loading ? (
+          <p className="text-center text-lg font-semibold">Loading trip...</p>
+        ) : trip ? (
+          <>
+            <InfoSection trip={trip} />
+            <Hotels trip={trip} />
+            <PlacesToVisit trip={trip} />
+          </>
+        ) : (
+          <p className="text-center text-red-500 text-lg font-semibold">
+            Trip not found or failed to load.
+          </p>
+        )}
       </div>
 
       <div className="w-screen bg-blue-50 overflow-hidden">
