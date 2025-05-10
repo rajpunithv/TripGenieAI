@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/view-trip/:tripId",
+      "destination": "/view-trip/[tripId]"
     }
   ]
 }
