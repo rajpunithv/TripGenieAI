@@ -351,36 +351,4 @@ export default function AuthButtons() {
     setModalType(type);
     setShowModal(true);
   };
-
-  return (
-    <>
-      <div className="flex items-center gap-2">
-        {session ? (
-          <UserProfile session={session} onSignOut={handleSignOut} />
-        ) : (
-          <>
-            <button
-              onClick={() => openModal("signin")}
-              className="flex items-center gap-1 px-4 py-2 text-gray-600 hover:text-gray-800"
-            >
-              <LogIn className="w-4 h-4" />
-              Sign In
-            </button>
-            <button
-              onClick={() => openModal("signup")}
-              className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              <UserPlus className="w-4 h-4" />
-              Sign Up
-            </button>
-          </>
-        )}
-      </div>
-      <AuthModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        type={modalType}
-      />
-    </>
-  );
 }
