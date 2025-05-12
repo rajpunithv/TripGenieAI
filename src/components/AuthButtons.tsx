@@ -1,19 +1,27 @@
-import React, { useState } from 'react';
-import { LogIn, LogOut, UserPlus, User, Mail, Phone, UserCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import React, { useState } from "react";
+import {
+  LogIn,
+  LogOut,
+  UserPlus,
+  User,
+  Mail,
+  Phone,
+  UserCircle,
+} from "lucide-react";
+import { supabase } from "../lib/supabase";
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  type: 'signin' | 'signup';
+  type: "signin" | "signup";
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, type }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -21,67 +29,87 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, type }) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
-  
+
     try {
       let userData = null;
-  
-      if (type === 'signup') {
+
+      if (type === "signup") {
         if (password !== confirmPassword) {
-          throw new Error('Passwords do not match');
+          throw new Error("Passwords do not match");
         }
-  
+
         // Sign up user
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-  
+        // Step 1: Sign up
+        const { data: signUpData, error: signUpError } =
+          await supabase.auth.signUp({
+            email,
+            password,
+          });
+
         if (signUpError) throw signUpError;
-  
-        if (authData.user) {
-          // Insert user details into 'profiles' table
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: authData.user.id,
-                email: email,
-                full_name: fullName,
-                phone: phone,
-              },
-            ]);
-  
-          if (profileError) throw profileError;
-  
-          // Store user data in Local Storage
-          userData = { email, full_name: fullName };
-          localStorage.setItem('user', JSON.stringify(userData));
-        }
+
+        // Step 2: Wait for session update (Supabase sets this async)
+        const checkUserInterval = setInterval(async () => {
+          const { data: sessionData } = await supabase.auth.getSession();
+
+          const user = sessionData.session?.user;
+          if (user) {
+            clearInterval(checkUserInterval);
+
+            // Step 3: Insert profile (only after user record is fully available in auth.users)
+            const { error: profileError } = await supabase
+              .from("profiles")
+              .insert([
+                {
+                  id: user.id,
+                  email,
+                  full_name: fullName,
+                  phone,
+                },
+              ]);
+
+            if (profileError) {
+              console.error("Profile insert error:", profileError.message);
+              setError(profileError.message);
+            } else {
+              // Profile successfully inserted
+              localStorage.setItem(
+                "user",
+                JSON.stringify({ email, full_name: fullName })
+              );
+              onClose();
+            }
+          }
+        }, 500); // Poll every 500ms
       } else {
         // Handle sign in
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-  
+        const { data: signInData, error: signInError } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
         if (signInError) throw signInError;
-  
+
         if (signInData.user) {
           // Fetch user profile from Supabase
           const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('full_name, email')
-            .eq('id', signInData.user.id)
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", signInData.user.id)
             .single();
-  
+
           if (profileError) throw profileError;
-  
+
           // Store user data in Local Storage
-          userData = { email: profileData.email, full_name: profileData.full_name };
-          localStorage.setItem('user', JSON.stringify(userData));
+          userData = {
+            email: profileData.email,
+            full_name: profileData.full_name,
+          };
+          localStorage.setItem("user", JSON.stringify(userData));
         }
       }
-  
+
       onClose();
     } catch (err: any) {
       setError(err.message);
@@ -89,15 +117,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, type }) => {
       setLoading(false);
     }
   };
-  
 
   if (!isOpen) return null;
+
+  function openModal(arg0: string): void {
+    throw new Error("Function not implemented.");
+  }
 
   return (
     <div className="fixed inset-0 h-screen w-screen bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-8 max-w-md w-full">
         <h2 className="text-2xl font-bold mb-6">
-          {type === 'signin' ? 'Sign In' : 'Create an Account'}
+          {type === "signin" ? "Sign In" : "Create an Account"}
         </h2>
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
@@ -105,7 +136,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, type }) => {
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {type === 'signup' && (
+          {type === "signup" && (
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -157,7 +188,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, type }) => {
               required
             />
           </div>
-          {type === 'signup' && (
+          {type === "signup" && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Confirm Password
@@ -185,20 +216,20 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, type }) => {
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               {loading
-                ? 'Loading...'
-                : type === 'signin'
-                ? 'Sign In'
-                : 'Sign Up'}
+                ? "Loading..."
+                : type === "signin"
+                ? "Sign In"
+                : "Sign Up"}
             </button>
           </div>
-          {type === 'signin' && (
+          {type === "signin" && (
             <p className="text-center text-sm text-gray-600 mt-4">
-              Don't have an account?{' '}
+              Don't have an account?{" "}
               <button
                 type="button"
                 onClick={() => {
                   onClose();
-                  setTimeout(() => openModal('signup'), 100);
+                  setTimeout(() => openModal("signup"), 100);
                 }}
                 className="text-blue-600 hover:text-blue-800 font-medium"
               >
@@ -225,9 +256,9 @@ const UserProfile: React.FC<UserProfileProps> = ({ session, onSignOut }) => {
     const fetchProfile = async () => {
       if (session?.user?.id) {
         const { data, error } = await supabase
-          .from('profiles')
-          .select('full_name, email, phone')
-          .eq('id', session.user.id)
+          .from("profiles")
+          .select("full_name, email, phone")
+          .eq("id", session.user.id)
           .single();
 
         if (!error && data) {
@@ -239,8 +270,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ session, onSignOut }) => {
     fetchProfile();
   }, [session]);
 
-  const fullName = profileData?.full_name || 'User Profile';
-  const email = profileData?.email || session?.user?.email || '';
+  const fullName = profileData?.full_name || "User Profile";
+  const email = profileData?.email || session?.user?.email || "";
 
   return (
     <div className="relative">
@@ -260,7 +291,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ session, onSignOut }) => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">{fullName}</p>
-                <p className="text-xs text-gray-400">@{email.split('@')[0]}</p>
+                <p className="text-xs text-gray-400">@{email.split("@")[0]}</p>
               </div>
             </div>
             <div className="space-y-2">
@@ -294,7 +325,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ session, onSignOut }) => {
 export default function AuthButtons() {
   const [session, setSession] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState<'signin' | 'signup'>('signin');
+  const [modalType, setModalType] = useState<"signin" | "signup">("signin");
 
   React.useEffect(() => {
     // Get initial session
@@ -316,7 +347,7 @@ export default function AuthButtons() {
     await supabase.auth.signOut();
   };
 
-  const openModal = (type: 'signin' | 'signup') => {
+  const openModal = (type: "signin" | "signup") => {
     setModalType(type);
     setShowModal(true);
   };
@@ -329,14 +360,14 @@ export default function AuthButtons() {
         ) : (
           <>
             <button
-              onClick={() => openModal('signin')}
+              onClick={() => openModal("signin")}
               className="flex items-center gap-1 px-4 py-2 text-gray-600 hover:text-gray-800"
             >
               <LogIn className="w-4 h-4" />
               Sign In
             </button>
             <button
-              onClick={() => openModal('signup')}
+              onClick={() => openModal("signup")}
               className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
               <UserPlus className="w-4 h-4" />

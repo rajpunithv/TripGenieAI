@@ -75,14 +75,22 @@ function App() {
     const user = localStorage.getItem("user")
       ? JSON.parse(localStorage.getItem("user") as string)
       : null;
+
+    // Generate a unique document ID for the trip
     const docId = Date.now().toString();
+
+    // Save the trip data to Firestore
     await setDoc(doc(db, "AITrips", docId), {
       userSelection: formData,
       tripData: JSON.parse(TripData),
-      userId: user?.email,
+      userId: user?.email || "guest", // Use "guest" if no user is logged in
       id: docId,
     });
+
+    // Smooth scroll to the top
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // Navigate to the view-trip page with the document ID
     navigate(`/view-trip/${docId}`);
   };
 
